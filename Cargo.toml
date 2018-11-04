@@ -1,0 +1,13 @@
+[package]
+name = "lotr-octgn"
+version = "0.1.0"
+authors = ["Terence Lee <hone02@gmail.com>"]
+
+[dependencies]
+rayon = "1.0"
+roxmltree = "0.2"
+reqwest = "0.9"
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
+tempdir = "0.3"
