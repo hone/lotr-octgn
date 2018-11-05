@@ -6,14 +6,17 @@ extern crate serde;
 extern crate serde_derive;
 extern crate serde_json;
 extern crate tempdir;
+extern crate walkdir;
+extern crate zip;
 
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::Read;
+use std::io::{Read, Write};
 
 use rayon::prelude::*;
 use roxmltree::Document;
 use tempdir::TempDir;
+use walkdir::WalkDir;
 
 const HOB_URL: &'static str = "http://hallofbeorn.com/Export/Search?CardSet=";
 const LOTR_OCTGN_ID: &'static str = "a21af4e8-be4b-4cda-a6b6-534f9717391f";
@@ -153,6 +156,34 @@ fn fetch_images(
     Ok(error_cards)
 }
 
+fn zip_directory(dir: &str, output: &str) -> Result<(), Box<std::error::Error>> {
+    let file = File::create(output)?;
+    let mut zip = zip::ZipWriter::new(file);
+    let options =
+        zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+    let mut buffer = Vec::new();
+
+    for entry in WalkDir::new(dir).into_iter().filter_map(|e| e.ok()) {
+        let path = entry.path();
+        let name = path
+            .strip_prefix(std::path::Path::new(dir))
+            .unwrap()
+            .to_str()
+            .unwrap();
+
+        if path.is_file() {
+            zip.start_file(name, options)?;
+            let mut f = File::open(path)?;
+
+            f.read_to_end(&mut buffer)?;
+            zip.write_all(&*buffer)?;
+            buffer.clear();
+        }
+    }
+
+    Ok(())
+}
+
 fn main() {
     let mut file = File::open("set.xml").unwrap();
     let mut text = String::new();
@@ -163,6 +194,7 @@ fn main() {
     println!("{}: {}", set.name, set.id);
     let hob_cards = fetch(&set.name).unwrap();
     let error_cards = fetch_images(&set.id, &set.cards, &hob_cards).unwrap();
+    zip_directory("lotr", &format!("{}.o8c", set.name).replace(" ", "-")).unwrap();
     for card in error_cards {
         println!("{}", card);
     }
