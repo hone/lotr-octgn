@@ -131,26 +131,24 @@ fn fetch_images(
         acc
     });
 
-    //let tmp_dir = TempDir::new("lotr")?;
-    let tmp_dir = format!("lotr/{}/{}", LOTR_OCTGN_ID, set_id);
-    std::fs::create_dir_all(&tmp_dir)?;
+    let tmp_dir = TempDir::new("lotr")?;
+    let set_dir = tmp_dir.path().join(LOTR_OCTGN_ID).join(set_id);
+    std::fs::create_dir_all(&set_dir)?;
 
     let error_cards = hob_cards
         .par_iter()
-        .filter_map(|hob_card| {
-            match octgn_map.get(&hob_card.title) {
-                Some(octgn_card) => {
-                    //let file_path = tmp_dir.path().join(octgn_card).join(".jpg");
-                    let file_path = format!("{}/{}.jpg", tmp_dir, octgn_card);
-                    let mut file = File::create(file_path).expect("can't create file");
-                    let mut resp =
-                        reqwest::get(&hob_card.front.image_path).expect("can't process request");
-                    std::io::copy(&mut resp, &mut file).expect("can't write download to file");
+        .filter_map(|hob_card| match octgn_map.get(&hob_card.title) {
+            Some(octgn_card) => {
+                let mut file_path = set_dir.join(octgn_card);
+                file_path.set_extension("jpg");
+                let mut file = File::create(file_path).expect("can't create file");
+                let mut resp =
+                    reqwest::get(&hob_card.front.image_path).expect("can't process request");
+                std::io::copy(&mut resp, &mut file).expect("can't write download to file");
 
-                    None
-                }
-                None => Some(hob_card.title.clone()),
+                None
             }
+            None => Some(hob_card.title.clone()),
         }).collect();
 
     Ok(error_cards)
