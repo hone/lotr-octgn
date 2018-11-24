@@ -19,107 +19,8 @@ use roxmltree::Document;
 use tempdir::TempDir;
 use walkdir::WalkDir;
 
-const HOB_URL: &'static str = "http://hallofbeorn.com/Export/Search?CardSet=";
-const LOTR_OCTGN_ID: &'static str = "a21af4e8-be4b-4cda-a6b6-534f9717391f";
-
-struct Set {
-    pub id: String,
-    pub name: String,
-    pub cards: Vec<Card>,
-}
-
-impl Set {
-    pub fn new(doc: Document) -> Self {
-        let node = doc.root().first_child().unwrap();
-        let atts = attributes(node.attributes());
-
-        let cards_node = node
-            .children()
-            .find(|child| child.is_element() && child.tag_name().name() == "cards")
-            .unwrap();
-        let cards = cards_node
-            .children()
-            .filter(|card_node| card_node.attributes().len() > 0)
-            .map(|card_node| {
-                let atts = attributes(card_node.attributes());
-                Card {
-                    id: atts.get("id").unwrap().to_string(),
-                    name: atts.get("name").unwrap().to_string(),
-                    ctype: "Ally".to_string(),
-                }
-            }).collect();
-
-        Self {
-            id: atts.get("id").unwrap().to_string(),
-            name: atts.get("name").unwrap().to_string(),
-            cards: cards,
-        }
-    }
-}
-
-struct Card {
-    pub id: String,
-    pub name: String,
-    pub ctype: String,
-}
-
-fn attributes<'a>(atts: &'a [roxmltree::Attribute]) -> HashMap<&'a str, &'a str> {
-    atts.iter().fold(HashMap::new(), |mut acc, attribute| {
-        acc.insert(attribute.name(), attribute.value());
-
-        acc
-    })
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-struct Stats {
-    threat_cost: Option<String>,
-    resource_cost: Option<String>,
-    willpower: Option<String>,
-    attack: Option<String>,
-    defense: Option<String>,
-    hit_points: Option<String>,
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-struct Side {
-    subtitle: Option<String>,
-    image_path: String,
-    stats: Option<Stats>,
-    traits: Vec<String>,
-    keywords: Vec<String>,
-    text: Vec<String>,
-    flavor_text: Option<String>,
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-struct HallOfBeornCard {
-    pub title: String,
-    pub is_unique: bool,
-    pub card_type: String,
-    pub card_sub_type: String,
-    pub sphere: Option<String>,
-    pub front: Side,
-    pub back: Option<Side>,
-    pub card_set: String,
-    pub number: u32,
-    pub quantity: u32,
-    pub artist: String,
-    pub has_errata: bool,
-    pub categories: Option<Vec<String>>,
-}
-
-fn fetch(set_name: &str) -> Result<Vec<HallOfBeornCard>, reqwest::Error> {
-    let cards: Vec<HallOfBeornCard> = reqwest::Client::new()
-        .get(&format!("{}{}", HOB_URL, set_name))
-        .send()?
-        .json()?;
-
-    Ok(cards)
-}
+mod hall_of_beorn;
+mod octgn;
 
 struct CardDownload {
     id: String,
@@ -127,7 +28,10 @@ struct CardDownload {
     back_url: Option<String>,
 }
 
-fn get_image_urls(octgn_cards: &Vec<Card>, hob_cards: &Vec<HallOfBeornCard>) -> Vec<CardDownload> {
+fn get_image_urls(
+    octgn_cards: &Vec<octgn::Card>,
+    hob_cards: &Vec<hall_of_beorn::Card>,
+) -> Vec<CardDownload> {
     let octgn_map = octgn_cards.iter().fold(HashMap::new(), |mut acc, card| {
         acc.insert(&card.name, &card.id);
 
@@ -160,7 +64,7 @@ fn get_image_urls(octgn_cards: &Vec<Card>, hob_cards: &Vec<HallOfBeornCard>) -> 
 
 fn fetch_images(set_id: &str, cards: &Vec<CardDownload>) -> Result<(), Box<std::error::Error>> {
     let tmp_dir = TempDir::new("lotr")?;
-    let set_dir = tmp_dir.path().join(LOTR_OCTGN_ID).join(set_id);
+    let set_dir = tmp_dir.path().join(octgn::LOTR_ID).join(set_id);
     std::fs::create_dir_all(&set_dir)?;
 
     cards.par_iter().for_each(|card| {
@@ -202,7 +106,10 @@ fn zip_directory(dir: &str, output: &str) -> Result<(), Box<std::error::Error>> 
     Ok(())
 }
 
-fn error_card_match_id(octgn_cards: &Vec<Card>, error_card: &HallOfBeornCard) -> (String, String) {
+fn error_card_match_id(
+    octgn_cards: &Vec<octgn::Card>,
+    error_card: &hall_of_beorn::Card,
+) -> (String, String) {
     let distance_map = octgn_cards
         .iter()
         .fold(HashMap::new(), |mut acc, octgn_card| {
@@ -231,9 +138,9 @@ fn main() {
     file.read_to_string(&mut text).unwrap();
 
     let doc = Document::parse(&text).unwrap();
-    let set = Set::new(doc);
+    let set = octgn::Set::new(doc);
     println!("{}: {}", set.name, set.id);
-    let hob_cards = fetch(&set.name).unwrap();
+    let hob_cards = hall_of_beorn::fetch(&set.name).unwrap();
     let card_downloads = get_image_urls(&set.cards, &hob_cards);
     fetch_images(&set.id, &card_downloads).unwrap();
     zip_directory("lotr", &format!("{}.o8c", set.name).replace(" ", "-")).unwrap();
