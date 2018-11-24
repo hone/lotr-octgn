@@ -5,6 +5,7 @@ extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
+extern crate strsim;
 extern crate tempdir;
 extern crate walkdir;
 extern crate zip;
@@ -120,38 +121,57 @@ fn fetch(set_name: &str) -> Result<Vec<HallOfBeornCard>, reqwest::Error> {
     Ok(cards)
 }
 
-fn fetch_images(
-    set_id: &str,
-    octgn_cards: &Vec<Card>,
-    hob_cards: &Vec<HallOfBeornCard>,
-) -> Result<Vec<String>, Box<std::error::Error>> {
+struct CardDownload {
+    id: String,
+    front_url: String,
+    back_url: Option<String>,
+}
+
+fn get_image_urls(octgn_cards: &Vec<Card>, hob_cards: &Vec<HallOfBeornCard>) -> Vec<CardDownload> {
     let octgn_map = octgn_cards.iter().fold(HashMap::new(), |mut acc, card| {
         acc.insert(&card.name, &card.id);
 
         acc
     });
 
+    hob_cards
+        .par_iter()
+        .map(|hob_card| {
+            let octgn_id = match octgn_map.get(&hob_card.title) {
+                Some(octgn_id) => octgn_id.to_string(),
+                None => {
+                    let (octgn_id, octgn_name) = error_card_match_id(&octgn_cards, &hob_card);
+                    println!(
+                        "Warning: Could not find {}, using {} instead.",
+                        &hob_card.title, octgn_name
+                    );
+
+                    octgn_id
+                }
+            };
+
+            CardDownload {
+                id: octgn_id.to_string(),
+                front_url: hob_card.front.image_path.to_owned(),
+                back_url: None,
+            }
+        }).collect()
+}
+
+fn fetch_images(set_id: &str, cards: &Vec<CardDownload>) -> Result<(), Box<std::error::Error>> {
     let tmp_dir = TempDir::new("lotr")?;
     let set_dir = tmp_dir.path().join(LOTR_OCTGN_ID).join(set_id);
     std::fs::create_dir_all(&set_dir)?;
 
-    let error_cards = hob_cards
-        .par_iter()
-        .filter_map(|hob_card| match octgn_map.get(&hob_card.title) {
-            Some(octgn_card) => {
-                let mut file_path = set_dir.join(octgn_card);
-                file_path.set_extension("jpg");
-                let mut file = File::create(file_path).expect("can't create file");
-                let mut resp =
-                    reqwest::get(&hob_card.front.image_path).expect("can't process request");
-                std::io::copy(&mut resp, &mut file).expect("can't write download to file");
+    cards.par_iter().for_each(|card| {
+        let mut file_path = set_dir.join(&card.id);
+        file_path.set_extension("jpg");
+        let mut file = File::create(file_path).expect("can't create file");
+        let mut resp = reqwest::get(&card.front_url).expect("can't process request");
+        std::io::copy(&mut resp, &mut file).expect("can't write download to file");
+    });
 
-                None
-            }
-            None => Some(hob_card.title.clone()),
-        }).collect();
-
-    Ok(error_cards)
+    Ok(())
 }
 
 fn zip_directory(dir: &str, output: &str) -> Result<(), Box<std::error::Error>> {
@@ -182,6 +202,29 @@ fn zip_directory(dir: &str, output: &str) -> Result<(), Box<std::error::Error>> 
     Ok(())
 }
 
+fn error_card_match_id(octgn_cards: &Vec<Card>, error_card: &HallOfBeornCard) -> (String, String) {
+    let distance_map = octgn_cards
+        .iter()
+        .fold(HashMap::new(), |mut acc, octgn_card| {
+            acc.insert(
+                &octgn_card.id,
+                (
+                    &octgn_card.name,
+                    strsim::levenshtein(&error_card.title, &octgn_card.name),
+                ),
+            );
+
+            acc
+        });
+
+    let card = distance_map
+        .iter()
+        .min_by_key(|(_, &value)| value.1)
+        .unwrap();
+
+    (card.0.to_string(), (card.1).0.to_string())
+}
+
 fn main() {
     let mut file = File::open("set.xml").unwrap();
     let mut text = String::new();
@@ -191,9 +234,7 @@ fn main() {
     let set = Set::new(doc);
     println!("{}: {}", set.name, set.id);
     let hob_cards = fetch(&set.name).unwrap();
-    let error_cards = fetch_images(&set.id, &set.cards, &hob_cards).unwrap();
+    let card_downloads = get_image_urls(&set.cards, &hob_cards);
+    fetch_images(&set.id, &card_downloads).unwrap();
     zip_directory("lotr", &format!("{}.o8c", set.name).replace(" ", "-")).unwrap();
-    for card in error_cards {
-        println!("{}", card);
-    }
 }
