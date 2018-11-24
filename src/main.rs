@@ -32,30 +32,30 @@ fn get_image_urls(
     octgn_cards: &Vec<octgn::Card>,
     hob_cards: &Vec<hall_of_beorn::Card>,
 ) -> Vec<CardDownload> {
-    let octgn_map = octgn_cards.iter().fold(HashMap::new(), |mut acc, card| {
-        acc.insert(&card.name, &card.id);
+    let hob_map = hob_cards.iter().fold(HashMap::new(), |mut acc, card| {
+        acc.insert(&card.title, card);
 
         acc
     });
 
-    hob_cards
+    octgn_cards
         .par_iter()
-        .map(|hob_card| {
-            let octgn_id = match octgn_map.get(&hob_card.title) {
-                Some(octgn_id) => octgn_id.to_string(),
+        .map(|octgn_card| {
+            let hob_card = match hob_map.get(&octgn_card.name) {
+                Some(hob_card) => hob_card,
                 None => {
-                    let (octgn_id, octgn_name) = error_card_match_id(&octgn_cards, &hob_card);
+                    let hob_card = guess_hob_card(&hob_cards, &octgn_card);
                     println!(
-                        "Warning: Could not find {}, using {} instead.",
-                        &hob_card.title, octgn_name
+                        "Warning: Could not find OCTGN Card '{}', using Hall of Beorn Card '{}' instead.",
+                        &octgn_card.name, hob_card.title
                     );
 
-                    octgn_id
+                    hob_card
                 }
             };
 
             CardDownload {
-                id: octgn_id.to_string(),
+                id: octgn_card.id.to_string(),
                 front_url: hob_card.front.image_path.to_owned(),
                 back_url: None,
             }
@@ -106,30 +106,29 @@ fn zip_directory(dir: &str, output: &str) -> Result<(), Box<std::error::Error>> 
     Ok(())
 }
 
-fn error_card_match_id(
-    octgn_cards: &Vec<octgn::Card>,
-    error_card: &hall_of_beorn::Card,
-) -> (String, String) {
-    let distance_map = octgn_cards
+fn guess_hob_card<'a>(
+    hob_cards: &'a Vec<hall_of_beorn::Card>,
+    unknown_card: &octgn::Card,
+) -> &'a hall_of_beorn::Card {
+    let distance_map = hob_cards.iter().fold(HashMap::new(), |mut acc, hob_card| {
+        acc.insert(
+            &hob_card.title,
+            strsim::levenshtein(&unknown_card.name, &hob_card.title),
+        );
+
+        acc
+    });
+
+    let title = distance_map
         .iter()
-        .fold(HashMap::new(), |mut acc, octgn_card| {
-            acc.insert(
-                &octgn_card.id,
-                (
-                    &octgn_card.name,
-                    strsim::levenshtein(&error_card.title, &octgn_card.name),
-                ),
-            );
+        .min_by_key(|(_, &value)| value)
+        .unwrap()
+        .0;
 
-            acc
-        });
-
-    let card = distance_map
+    hob_cards
         .iter()
-        .min_by_key(|(_, &value)| value.1)
-        .unwrap();
-
-    (card.0.to_string(), (card.1).0.to_string())
+        .find(|ref hob_card| &&hob_card.title == title)
+        .unwrap()
 }
 
 fn main() {
