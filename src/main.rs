@@ -4,6 +4,8 @@ extern crate roxmltree;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
+#[cfg(test)]
+extern crate mockito;
 extern crate serde_json;
 extern crate strsim;
 extern crate tempdir;
@@ -132,15 +134,73 @@ fn guess_hob_card<'a>(
 }
 
 fn main() {
-    let mut file = File::open("set.xml").unwrap();
+    let mut file = File::open("fixtures/set.xml").unwrap();
     let mut text = String::new();
     file.read_to_string(&mut text).unwrap();
 
     let doc = Document::parse(&text).unwrap();
-    let set = octgn::Set::new(doc);
+    let set = octgn::Set::new(&doc);
     println!("{}: {}", set.name, set.id);
-    let hob_cards = hall_of_beorn::fetch(&set.name).unwrap();
+    let hob_cards =
+        hall_of_beorn::fetch(&set.name).expect("Could not fetch data from hallofbeorn.com");
     let card_downloads = get_image_urls(&set.cards, &hob_cards);
     fetch_images(&set.id, &card_downloads).unwrap();
     zip_directory("lotr", &format!("{}.o8c", set.name).replace(" ", "-")).unwrap();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use mockito::mock;
+
+    fn load_hall_of_beorn() -> Vec<hall_of_beorn::Card> {
+        let set = "The Wilds of Rhovanion";
+        let mut file = File::open("fixtures/hob.json").unwrap();
+        let mut body = String::new();
+        file.read_to_string(&mut body).unwrap();
+
+        let _m = mock("GET", "/Export/Search?CardSet=The%20Wilds%20of%20Rhovanion")
+            .with_header("content-type", "application/json")
+            .with_body(body)
+            .create();
+
+        hall_of_beorn::fetch(set).unwrap()
+    }
+
+    #[test]
+    fn test_get_image_urls_normal_card() {
+        let hob_cards = load_hall_of_beorn();
+        let brand_son_of_bain = octgn::Card {
+            id: "2b75792d-5873-4fc6-9272-d20dd517d36b".to_string(),
+            name: "Brand son of Bain".to_string(),
+        };
+        let octgn_cards = vec![brand_son_of_bain];
+
+        let card_downloads = get_image_urls(&octgn_cards, &hob_cards);
+        assert_eq!(card_downloads.len(), 1);
+
+        let card = card_downloads.get(0).unwrap();
+        assert_eq!(&card.id, "2b75792d-5873-4fc6-9272-d20dd517d36b");
+        assert_eq!(&card.front_url, "https://s3.amazonaws.com/hallofbeorn-resources/Images/Cards/The-Wilds-of-Rhovanion/Brand-son-of-Bain.jpg");
+        assert!(&card.back_url.is_none());
+    }
+
+    #[test]
+    fn test_get_image_urls_unknown_card() {
+        let hob_cards = load_hall_of_beorn();
+        let fire_drake = octgn::Card {
+            id: "42a5a608-0699-4cd5-b69d-f7c3413cd5cd".to_string(),
+            name: "Fire Drake".to_string(),
+        };
+        let octgn_cards = vec![fire_drake];
+
+        let card_downloads = get_image_urls(&octgn_cards, &hob_cards);
+        assert_eq!(card_downloads.len(), 1);
+
+        let card = card_downloads.get(0).unwrap();
+        assert_eq!(&card.id, "42a5a608-0699-4cd5-b69d-f7c3413cd5cd");
+        assert_eq!(&card.front_url, "https://s3.amazonaws.com/hallofbeorn-resources/Images/Cards/The-Wilds-of-Rhovanion/Fire-drake.jpg");
+        assert!(&card.back_url.is_none());
+    }
 }

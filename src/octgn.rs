@@ -16,7 +16,7 @@ pub struct Set {
 }
 
 impl Set {
-    pub fn new(doc: Document) -> Self {
+    pub fn new(doc: &Document) -> Self {
         let node = doc.root().first_child().unwrap();
         let atts = attributes(node.attributes());
 
@@ -49,4 +49,26 @@ fn attributes<'a>(atts: &'a [roxmltree::Attribute]) -> HashMap<&'a str, &'a str>
 
         acc
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use std::fs::File;
+    use std::io::Read;
+
+    #[test]
+    fn test_new() {
+        let mut file = File::open("fixtures/set.xml").unwrap();
+        let mut xml = String::new();
+        file.read_to_string(&mut xml).unwrap();
+        let doc = Document::parse(&xml).unwrap();
+
+        let set = Set::new(&doc);
+        assert_eq!(&set.name, "The Wilds of Rhovanion");
+        assert_eq!(&set.id, "e37145f0-8970-48d3-93bc-cef612226bda");
+        // Woodman Village is 2 cards. Backside is Haldan
+        assert_eq!(set.cards.len(), 79);
+    }
 }

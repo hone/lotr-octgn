@@ -1,4 +1,7 @@
-const HOB_URL: &'static str = "http://hallofbeorn.com/Export/Search?CardSet=";
+#[cfg(not(test))]
+const HOB_URL: &'static str = "http://hallofbeorn.com";
+#[cfg(test)]
+const HOB_URL: &str = mockito::SERVER_URL;
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
@@ -43,9 +46,38 @@ pub struct Side {
 
 pub fn fetch(set_name: &str) -> Result<Vec<Card>, reqwest::Error> {
     let cards: Vec<Card> = reqwest::Client::new()
-        .get(&format!("{}{}", HOB_URL, set_name))
+        .get(&format!("{}/Export/Search?CardSet={}", HOB_URL, set_name))
         .send()?
         .json()?;
 
     Ok(cards)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use std::fs::File;
+    use std::io::Read;
+
+    use mockito::mock;
+
+    #[test]
+    fn test_fetch() {
+        let set = "The Wilds of Rhovanion";
+        let mut file = File::open("fixtures/hob.json").unwrap();
+        let mut body = String::new();
+        file.read_to_string(&mut body).unwrap();
+
+        let _m = mock("GET", "/Export/Search?CardSet=The%20Wilds%20of%20Rhovanion")
+            .with_header("content-type", "application/json")
+            .with_body(body)
+            .create();
+
+        let result = fetch(set);
+        assert!(result.is_ok());
+
+        let cards = result.unwrap();
+        assert_eq!(cards.len(), 80);
+    }
 }
