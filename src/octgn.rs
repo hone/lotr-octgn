@@ -7,6 +7,7 @@ pub const LOTR_ID: &'static str = "a21af4e8-be4b-4cda-a6b6-534f9717391f";
 pub struct Card {
     pub id: String,
     pub name: String,
+    pub back_name: Option<String>,
 }
 
 pub struct Set {
@@ -29,9 +30,17 @@ impl Set {
             .filter(|card_node| card_node.attributes().len() > 0)
             .map(|card_node| {
                 let atts = attributes(card_node.attributes());
+                let back_name = card_node
+                    .children()
+                    .find(|child| child.is_element() && child.tag_name().name() == "alternate")
+                    .map(|alternative_node| {
+                        let atts = attributes(alternative_node.attributes());
+                        atts.get("name").unwrap().to_string()
+                    });
                 Card {
                     id: atts.get("id").unwrap().to_string(),
                     name: atts.get("name").unwrap().to_string(),
+                    back_name: back_name,
                 }
             }).collect();
 
@@ -70,5 +79,39 @@ mod tests {
         assert_eq!(&set.id, "e37145f0-8970-48d3-93bc-cef612226bda");
         // Woodman Village is 2 cards. Backside is Haldan
         assert_eq!(set.cards.len(), 79);
+    }
+
+    #[test]
+    fn test_card_back() {
+        let xml = r#"<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<set xmlns:noNamespaceSchemaLocation="CardSet.xsd" name="The Wilds of Rhovanion" id="e37145f0-8970-48d3-93bc-cef612226bda" gameId="a21af4e8-be4b-4cda-a6b6-534f9717391f" gameVersion="2.3.6.0" version="1.0.0">
+ <cards>
+  <card id="1d4d59f4-def5-4c9e-ba3f-8a28e7f66c73" name="Woodman Village" size="EncounterCard">
+    <property name="Card Number" value="69"/>
+    <property name="Quantity" value="1"/>
+    <property name="Encounter Set" value="Journey Up the Anduin"/>
+    <property name="Type" value="Location"/>
+    <property name="Traits" value="Riverland."/>
+    <property name="Threat" value="4"/>
+    <property name="Quest Points" value="4"/>
+    <property name="Text" value="Immune to player card effects. Forced: When Woodman Village is explored, add the top card of the Evil Creatures deck to the staging area. Then, flip over Woodman Village and attach Haldan to the just-added enemy as a guarded objective."/>
+    <alternate name="Haldan" type="B">
+      <property name="Encounter Set" value="Journey Up the Anduin"/>
+      <property name="Type" value="Objective Ally"/>
+      <property name="Traits" value="Woodman. Scout."/>
+      <property name="Willpower" value="2"/>
+      <property name="Attack" value="3"/>
+      <property name="Defense" value="1"/>
+      <property name="Health" value="4"/>
+      <property name="Text" value="The first player gains control of Haldan while he is free of encounters. While there is an active location, Haldan does not exhaust to quest. If Haldan leaves play, the players lose the game."/>
+    </alternate>
+  </card>
+ </cards>
+</set>"#;
+        let doc = Document::parse(&xml).unwrap();
+        let set = Set::new(&doc);
+
+        let card = set.cards.get(0).unwrap();
+        assert!(card.back_name.is_some());
     }
 }
