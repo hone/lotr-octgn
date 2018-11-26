@@ -90,7 +90,11 @@ fn fetch_images(
     set_id: &str,
     cards: &Vec<CardDownload>,
 ) -> Result<(), Box<std::error::Error>> {
-    let set_dir = work_dir.join(octgn::LOTR_ID).join(set_id);
+    let set_dir = work_dir
+        .join(octgn::LOTR_ID)
+        .join("Sets")
+        .join(set_id)
+        .join("Cards");
     std::fs::create_dir_all(&set_dir)?;
 
     cards.par_iter().for_each(|card| {
