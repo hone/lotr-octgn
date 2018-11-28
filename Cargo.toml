@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Terence Lee <hone02@gmail.com>"]
 
 [dependencies]
+docopt = "1"
 git2 = "0.7"
 rayon = "1.0"
 roxmltree = "0.2"
