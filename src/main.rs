@@ -298,4 +298,86 @@ mod tests {
         let result = card.back_url.as_ref().unwrap();
         assert_eq!(result, "https://s3.amazonaws.com/hallofbeorn-resources/Images/Cards/The-Wilds-of-Rhovanion/Haldan.jpg");
     }
+
+    #[test]
+    fn test_fetch_images_normal() {
+        let tmp_dir = TempDir::new("lotr-test").unwrap();
+        let set_id = "e37145f0-8970-48d3-93bc-cef612226bda";
+        let card_id = "2b75792d-5873-4fc6-9272-d20dd517d36b";
+        let brand_son_of_bain = CardDownload {
+            id: card_id.to_string(),
+            front_url: format!("{}/Images/Cards/Brand-son-of-Bain.jpg", mockito::SERVER_URL),
+            back_url: None,
+        };
+        let _m = mock("GET", "/Images/Cards/Brand-son-of-Bain.jpg")
+            .with_header("content-type", "image/jpeg")
+            .with_body(card_id)
+            .create();
+
+        let cards = vec![brand_son_of_bain];
+
+        let result = fetch_images(&tmp_dir.path(), set_id, &cards);
+        assert!(result.is_ok());
+
+        let image_path = &tmp_dir
+            .path()
+            .join(octgn::LOTR_ID)
+            .join("Sets")
+            .join(&set_id)
+            .join("Cards")
+            .join(format!("{}.jpg", card_id));
+        let mut file = File::open(&image_path).unwrap();
+        let mut content = String::new();
+        file.read_to_string(&mut content).unwrap();
+        assert_eq!(card_id, content);
+    }
+
+    #[test]
+    fn test_fetch_images_back() {
+        let tmp_dir = TempDir::new("lotr-test").unwrap();
+        let set_id = "e37145f0-8970-48d3-93bc-cef612226bda";
+        let card_id = "1d4d59f4-def5-4c9e-ba3f-8a28e7f66c73";
+        let woodman_village = CardDownload {
+            id: card_id.to_string(),
+            front_url: format!("{}/Images/Cards/Woodmen-village.jpg", mockito::SERVER_URL),
+            back_url: Some(format!("{}/Images/Cards/Haldan.jpg", mockito::SERVER_URL)),
+        };
+        let _m = mock("GET", "/Images/Cards/Woodmen-village.jpg")
+            .with_header("content-type", "image/jpeg")
+            .with_body("Woodmen Village")
+            .create();
+        let _m2 = mock("GET", "/Images/Cards/Haldan.jpg")
+            .with_header("content-type", "image/jpeg")
+            .with_body("Haldan")
+            .create();
+
+        let cards = vec![woodman_village];
+
+        let result = fetch_images(&tmp_dir.path(), set_id, &cards);
+        assert!(result.is_ok());
+
+        let image_path = &tmp_dir
+            .path()
+            .join(octgn::LOTR_ID)
+            .join("Sets")
+            .join(&set_id)
+            .join("Cards")
+            .join(format!("{}.jpg", card_id));
+        let mut file = File::open(&image_path).unwrap();
+        let mut content = String::new();
+        file.read_to_string(&mut content).unwrap();
+        assert_eq!(content, "Woodmen Village");
+
+        let image_path = &tmp_dir
+            .path()
+            .join(octgn::LOTR_ID)
+            .join("Sets")
+            .join(&set_id)
+            .join("Cards")
+            .join(format!("{}.B.jpg", card_id));
+        let mut file = File::open(&image_path).unwrap();
+        let mut content = String::new();
+        file.read_to_string(&mut content).unwrap();
+        assert_eq!(content, "Haldan");
+    }
 }
