@@ -380,4 +380,11 @@ mod tests {
         file.read_to_string(&mut content).unwrap();
         assert_eq!(content, "Haldan");
     }
+
+    #[test]
+    fn test_guess_hob_card() {
+        let hob_cards = load_hall_of_beorn();
+        let fire_drake = guess_hob_card(&hob_cards, "Fire Drake");
+        assert_eq!(fire_drake.title, "Fire-drake");
+    }
 }
