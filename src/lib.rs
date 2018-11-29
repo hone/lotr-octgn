@@ -1,11 +1,11 @@
+#[cfg(test)]
+extern crate mockito;
 extern crate rayon;
 extern crate reqwest;
+extern crate roxmltree;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-#[cfg(test)]
-extern crate mockito;
-extern crate roxmltree;
 extern crate serde_json;
 extern crate strsim;
 extern crate tempdir;
@@ -18,7 +18,6 @@ use std::io::{Read, Write};
 use std::path::Path;
 
 use rayon::prelude::*;
-use roxmltree::Document;
 use tempdir::TempDir;
 use walkdir::WalkDir;
 
@@ -174,13 +173,7 @@ fn guess_hob_card<'a>(
         .unwrap()
 }
 
-pub fn pack(_set_name: &str) -> Result<(), Box<std::error::Error>> {
-    let mut file = File::open("fixtures/set.xml")?;
-    let mut text = String::new();
-    file.read_to_string(&mut text)?;
-
-    let doc = Document::parse(&text)?;
-    let set = octgn::Set::new(&doc);
+pub fn pack(set: &octgn::Set) -> Result<(), Box<std::error::Error>> {
     println!("{}: {}", set.name, set.id);
     println!("Fetching data from Hall of Beorn");
     let hob_cards = hall_of_beorn::fetch(&set.name)?;
@@ -198,8 +191,14 @@ pub fn pack(_set_name: &str) -> Result<(), Box<std::error::Error>> {
     Ok(())
 }
 
+pub fn sets() -> Result<Vec<octgn::Set>, Box<std::error::Error>> {
+    let dir = "fixtures/octgn/o8g/Sets";
+    octgn::Set::fetch_all(dir)
+}
+
 #[cfg(test)]
 mod tests {
+
     use super::*;
 
     use mockito::mock;

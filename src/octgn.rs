@@ -1,6 +1,9 @@
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::Read;
 
 use roxmltree::Document;
+use walkdir::WalkDir;
 
 pub const LOTR_ID: &'static str = "a21af4e8-be4b-4cda-a6b6-534f9717391f";
 
@@ -49,6 +52,27 @@ impl Set {
             name: atts.get("name").unwrap().to_string(),
             cards: cards,
         }
+    }
+
+    pub fn fetch_all(folder: &str) -> Result<Vec<Set>, Box<std::error::Error>> {
+        let sets = WalkDir::new(folder)
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .filter_map(|entry| {
+                let path = entry.path();
+
+                path.extension()
+                    .filter(|extension| extension.to_str().unwrap() == "xml")
+                    .and_then(|_| {
+                        let mut file = File::open(&path).unwrap();
+                        let mut xml = String::new();
+                        file.read_to_string(&mut xml).unwrap();
+                        let doc = Document::parse(&xml).unwrap();
+                        Some(Set::new(&doc))
+                    })
+            }).collect();
+
+        Ok(sets)
     }
 }
 
@@ -113,5 +137,14 @@ mod tests {
 
         let card = set.cards.get(0).unwrap();
         assert!(card.back_name.is_some());
+    }
+
+    #[test]
+    fn test_all() {
+        let result = Set::fetch_all("fixtures/octgn/o8g/Sets");
+        assert!(result.is_ok());
+
+        let sets = result.unwrap();
+        assert_eq!(sets.len(), 107);
     }
 }
