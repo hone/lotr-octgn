@@ -24,6 +24,8 @@ use walkdir::WalkDir;
 mod hall_of_beorn;
 mod octgn;
 
+const MAX_SET_LEVENSHTEIN: usize = 5;
+
 struct CardDownload {
     id: String,
     front_url: String,
@@ -176,7 +178,7 @@ fn guess_hob_card<'a>(
 pub fn pack(set: &octgn::Set) -> Result<(), Box<std::error::Error>> {
     println!("{}: {}", set.name, set.id);
     println!("Fetching data from Hall of Beorn");
-    let hob_cards = hall_of_beorn::fetch(&set.name)?;
+    let hob_cards = hall_of_beorn::Card::fetch_all(&set.name)?;
     println!("Generating image urls");
     let card_downloads = get_image_urls(&set.cards, &hob_cards);
 
@@ -193,7 +195,33 @@ pub fn pack(set: &octgn::Set) -> Result<(), Box<std::error::Error>> {
 
 pub fn sets() -> Result<Vec<octgn::Set>, Box<std::error::Error>> {
     let dir = "fixtures/octgn/o8g/Sets";
-    octgn::Set::fetch_all(dir)
+    let octgn_sets = octgn::Set::fetch_all(dir)?;
+    let hob_sets = hall_of_beorn::CardSet::fetch_all()?;
+
+    // only care about octgn sets that also have a matching hob set
+    let ordered_sets = hob_sets
+        .iter()
+        .filter_map(|hob_set| {
+            let distance_map = octgn_sets
+                .iter()
+                .fold(HashMap::new(), |mut acc, octgn_set| {
+                    acc.insert(
+                        octgn_set,
+                        strsim::levenshtein(&hob_set.name, &octgn_set.name),
+                    );
+
+                    acc
+                });
+            let min_match_set = distance_map.iter().min_by_key(|(_, &value)| value).unwrap();
+
+            if *min_match_set.1 < MAX_SET_LEVENSHTEIN {
+                Some((*min_match_set.0).clone())
+            } else {
+                None
+            }
+        }).collect();
+
+    Ok(ordered_sets)
 }
 
 #[cfg(test)]
@@ -205,7 +233,7 @@ mod tests {
 
     fn load_hall_of_beorn() -> Vec<hall_of_beorn::Card> {
         let set = "The Wilds of Rhovanion";
-        let mut file = File::open("fixtures/hob.json").unwrap();
+        let mut file = File::open("fixtures/hob/search.json").unwrap();
         let mut body = String::new();
         file.read_to_string(&mut body).unwrap();
 
@@ -214,7 +242,7 @@ mod tests {
             .with_body(body)
             .create();
 
-        hall_of_beorn::fetch(set).unwrap()
+        hall_of_beorn::Card::fetch_all(set).unwrap()
     }
 
     #[test]
@@ -386,5 +414,33 @@ mod tests {
         let hob_cards = load_hall_of_beorn();
         let fire_drake = guess_hob_card(&hob_cards, "Fire Drake");
         assert_eq!(fire_drake.title, "Fire-drake");
+    }
+
+    #[test]
+    fn test_sets() {
+        let mut file = File::open("fixtures/hob/card_sets.json").unwrap();
+        let mut body = String::new();
+
+        file.read_to_string(&mut body).unwrap();
+        let _m = mock("GET", "/Export/CardSets")
+            .with_header("content-type", "application/json")
+            .with_body(body)
+            .create();
+        let result = sets();
+        assert!(result.is_ok());
+
+        let card_sets = result.unwrap();
+        let mut title_check = HashMap::new();
+        title_check.insert(0, "Core Set");
+        title_check.insert(1, "The Hunt for Gollum");
+        // check for accents
+        title_check.insert(7, "Khazad-dum");
+        // check for missing beginning article
+        title_check.insert(21, "Voice of Isengard");
+        title_check.insert(52, "The Hobbit - Over Hill and Under Hill");
+        title_check.insert(61, "The Massing at Osgiliath");
+        for (index, name) in title_check {
+            assert_eq!(card_sets.get(index).unwrap().name, name);
+        }
     }
 }

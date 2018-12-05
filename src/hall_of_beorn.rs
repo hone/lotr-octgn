@@ -21,6 +21,17 @@ pub struct Card {
     pub categories: Option<Vec<String>>,
 }
 
+impl Card {
+    pub fn fetch_all(set_name: &str) -> Result<Vec<Card>, reqwest::Error> {
+        let cards: Vec<Card> = reqwest::Client::new()
+            .get(&format!("{}/Export/Search?CardSet={}", HOB_URL, set_name))
+            .send()?
+            .json()?;
+
+        Ok(cards)
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct Stats {
@@ -44,13 +55,23 @@ pub struct Side {
     pub flavor_text: Option<String>,
 }
 
-pub fn fetch(set_name: &str) -> Result<Vec<Card>, reqwest::Error> {
-    let cards: Vec<Card> = reqwest::Client::new()
-        .get(&format!("{}/Export/Search?CardSet={}", HOB_URL, set_name))
-        .send()?
-        .json()?;
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct CardSet {
+    pub name: String,
+    pub cycle: Option<String>,
+    pub set_type: String,
+}
 
-    Ok(cards)
+impl CardSet {
+    pub fn fetch_all() -> Result<Vec<CardSet>, reqwest::Error> {
+        let card_sets = reqwest::Client::new()
+            .get(&format!("{}/Export/CardSets", HOB_URL))
+            .send()?
+            .json()?;
+
+        Ok(card_sets)
+    }
 }
 
 #[cfg(test)]
@@ -63,9 +84,9 @@ mod tests {
     use mockito::mock;
 
     #[test]
-    fn test_fetch() {
+    fn test_card_fetch_all() {
         let set = "The Wilds of Rhovanion";
-        let mut file = File::open("fixtures/hob.json").unwrap();
+        let mut file = File::open("fixtures/hob/search.json").unwrap();
         let mut body = String::new();
         file.read_to_string(&mut body).unwrap();
 
@@ -74,10 +95,28 @@ mod tests {
             .with_body(body)
             .create();
 
-        let result = fetch(set);
+        let result = Card::fetch_all(set);
         assert!(result.is_ok());
 
         let cards = result.unwrap();
         assert_eq!(cards.len(), 80);
+    }
+
+    #[test]
+    fn test_card_sets_fetch_all() {
+        let mut file = File::open("fixtures/hob/card_sets.json").unwrap();
+        let mut body = String::new();
+        file.read_to_string(&mut body).unwrap();
+
+        let _m = mock("GET", "/Export/CardSets")
+            .with_header("content-type", "application/json")
+            .with_body(body)
+            .create();
+
+        let result = CardSet::fetch_all();
+        assert!(result.is_ok());
+
+        let card_sets = result.unwrap();
+        assert_eq!(card_sets.len(), 144);
     }
 }
