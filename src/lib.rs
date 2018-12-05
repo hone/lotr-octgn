@@ -199,27 +199,36 @@ pub fn sets() -> Result<Vec<octgn::Set>, Box<std::error::Error>> {
     let hob_sets = hall_of_beorn::CardSet::fetch_all()?;
 
     // only care about octgn sets that also have a matching hob set
-    let ordered_sets = hob_sets
-        .iter()
+    let ordered_set_names: Vec<String> = hob_sets
+        .into_iter()
         .filter_map(|hob_set| {
             let distance_map = octgn_sets
                 .iter()
                 .fold(HashMap::new(), |mut acc, octgn_set| {
                     acc.insert(
-                        octgn_set,
+                        &octgn_set.name,
                         strsim::levenshtein(&hob_set.name, &octgn_set.name),
                     );
 
                     acc
                 });
-            let min_match_set = distance_map.iter().min_by_key(|(_, &value)| value).unwrap();
+            let min_match_set = distance_map
+                .into_iter()
+                .min_by_key(|&(_, value)| value)
+                .unwrap();
 
-            if *min_match_set.1 < MAX_SET_LEVENSHTEIN {
-                Some((*min_match_set.0).clone())
+            if min_match_set.1 < MAX_SET_LEVENSHTEIN {
+                Some(min_match_set.0.clone())
             } else {
                 None
             }
         }).collect();
+
+    let mut ordered_sets = octgn_sets
+        .into_iter()
+        .filter(|set| ordered_set_names.contains(&set.name))
+        .collect::<Vec<octgn::Set>>();
+    ordered_sets.sort_by_key(|set| ordered_set_names.iter().position(|name| &set.name == name));
 
     Ok(ordered_sets)
 }

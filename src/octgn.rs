@@ -7,14 +7,14 @@ use walkdir::WalkDir;
 
 pub const LOTR_ID: &'static str = "a21af4e8-be4b-4cda-a6b6-534f9717391f";
 
-#[derive(Clone, Hash, Eq, PartialEq)]
+#[derive(Hash, Eq, PartialEq)]
 pub struct Card {
     pub id: String,
     pub name: String,
     pub back_name: Option<String>,
 }
 
-#[derive(Clone, Hash, Eq, PartialEq)]
+#[derive(Hash, Eq, PartialEq)]
 pub struct Set {
     pub id: String,
     pub name: String,
