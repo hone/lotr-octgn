@@ -154,24 +154,20 @@ fn guess_hob_card<'a>(
     hob_cards: &'a Vec<hall_of_beorn::Card>,
     unknown_card_name: &str,
 ) -> &'a hall_of_beorn::Card {
-    let distance_map = hob_cards.iter().fold(HashMap::new(), |mut acc, hob_card| {
-        acc.insert(
-            &hob_card.title,
-            strsim::levenshtein(&unknown_card_name, &hob_card.title),
-        );
-
-        acc
-    });
-
-    let title = distance_map
-        .iter()
-        .min_by_key(|(_, &value)| value)
+    let title = hob_cards
+        .par_iter()
+        .map(|hob_card| {
+            (
+                &hob_card.title,
+                strsim::levenshtein(&unknown_card_name, &hob_card.title),
+            )
+        }).min_by_key(|&(_, value)| value)
         .unwrap()
         .0;
 
     hob_cards
         .iter()
-        .find(|ref hob_card| &&hob_card.title == title)
+        .find(|ref hob_card| &hob_card.title == title)
         .unwrap()
 }
 
