@@ -200,21 +200,16 @@ pub fn sets() -> Result<Vec<octgn::Set>, Box<std::error::Error>> {
 
     // only care about octgn sets that also have a matching hob set
     let ordered_set_names: Vec<String> = hob_sets
-        .into_iter()
+        .into_par_iter()
         .filter_map(|hob_set| {
-            let distance_map = octgn_sets
-                .iter()
-                .fold(HashMap::new(), |mut acc, octgn_set| {
-                    acc.insert(
+            let min_match_set = octgn_sets
+                .par_iter()
+                .map(|octgn_set| {
+                    (
                         &octgn_set.name,
                         strsim::levenshtein(&hob_set.name, &octgn_set.name),
-                    );
-
-                    acc
-                });
-            let min_match_set = distance_map
-                .into_iter()
-                .min_by_key(|&(_, value)| value)
+                    )
+                }).min_by_key(|&(_, value)| value)
                 .unwrap();
 
             if min_match_set.1 < MAX_SET_LEVENSHTEIN {
@@ -225,10 +220,14 @@ pub fn sets() -> Result<Vec<octgn::Set>, Box<std::error::Error>> {
         }).collect();
 
     let mut ordered_sets = octgn_sets
-        .into_iter()
+        .into_par_iter()
         .filter(|set| ordered_set_names.contains(&set.name))
         .collect::<Vec<octgn::Set>>();
-    ordered_sets.sort_by_key(|set| ordered_set_names.iter().position(|name| &set.name == name));
+    ordered_sets.sort_by_key(|set| {
+        ordered_set_names
+            .par_iter()
+            .position_any(|name| &set.name == name)
+    });
 
     Ok(ordered_sets)
 }
