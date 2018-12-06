@@ -78,22 +78,12 @@ impl CardSet {
 mod tests {
     use super::*;
 
-    use std::fs::File;
-    use std::io::Read;
-
-    use mockito::mock;
+    use tests::mocks::hall_of_beorn as mocks;
 
     #[test]
     fn test_card_fetch_all() {
         let set = "The Wilds of Rhovanion";
-        let mut file = File::open("fixtures/hob/search.json").unwrap();
-        let mut body = String::new();
-        file.read_to_string(&mut body).unwrap();
-
-        let _m = mock("GET", "/Export/Search?CardSet=The%20Wilds%20of%20Rhovanion")
-            .with_header("content-type", "application/json")
-            .with_body(body)
-            .create();
+        let _m = mocks::card_set(&set);
 
         let result = Card::fetch_all(set);
         assert!(result.is_ok());
@@ -104,15 +94,7 @@ mod tests {
 
     #[test]
     fn test_card_sets_fetch_all() {
-        let mut file = File::open("fixtures/hob/card_sets.json").unwrap();
-        let mut body = String::new();
-        file.read_to_string(&mut body).unwrap();
-
-        let _m = mock("GET", "/Export/CardSets")
-            .with_header("content-type", "application/json")
-            .with_body(body)
-            .create();
-
+        let _m = mocks::card_sets();
         let result = CardSet::fetch_all();
         assert!(result.is_ok());
 
