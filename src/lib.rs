@@ -230,21 +230,16 @@ pub fn sets() -> Result<Vec<octgn::Set>, Box<std::error::Error>> {
 
 #[cfg(test)]
 mod tests {
+    pub mod mocks;
 
     use super::*;
 
+    use self::mocks::hall_of_beorn as hob_mocks;
     use mockito::mock;
 
     fn load_hall_of_beorn() -> Vec<hall_of_beorn::Card> {
         let set = "The Wilds of Rhovanion";
-        let mut file = File::open("fixtures/hob/search.json").unwrap();
-        let mut body = String::new();
-        file.read_to_string(&mut body).unwrap();
-
-        let _m = mock("GET", "/Export/Search?CardSet=The%20Wilds%20of%20Rhovanion")
-            .with_header("content-type", "application/json")
-            .with_body(body)
-            .create();
+        let _m = hob_mocks::card_set(&set).unwrap();
 
         hall_of_beorn::Card::fetch_all(set).unwrap()
     }
@@ -422,14 +417,7 @@ mod tests {
 
     #[test]
     fn test_sets() {
-        let mut file = File::open("fixtures/hob/card_sets.json").unwrap();
-        let mut body = String::new();
-
-        file.read_to_string(&mut body).unwrap();
-        let _m = mock("GET", "/Export/CardSets")
-            .with_header("content-type", "application/json")
-            .with_body(body)
-            .create();
+        let _m = hob_mocks::card_sets().unwrap();
         let result = sets();
         assert!(result.is_ok());
 
