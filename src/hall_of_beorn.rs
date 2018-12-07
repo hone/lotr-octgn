@@ -78,7 +78,7 @@ impl CardSet {
 mod tests {
     use super::*;
 
-    use tests::mocks::hall_of_beorn as mocks;
+    use crate::tests::mocks::hall_of_beorn as mocks;
 
     #[test]
     fn test_card_fetch_all() {

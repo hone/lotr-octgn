@@ -83,7 +83,8 @@ fn get_image_urls(
                 front_url: hob_card.front.image_path.to_owned(),
                 back_url: back_url,
             }
-        }).collect()
+        })
+        .collect()
 }
 
 fn fetch_images(
@@ -161,7 +162,8 @@ fn guess_hob_card<'a>(
                 &hob_card.title,
                 strsim::levenshtein(&unknown_card_name, &hob_card.title),
             )
-        }).min_by_key(|&(_, value)| value)
+        })
+        .min_by_key(|&(_, value)| value)
         .unwrap()
         .0;
 
@@ -205,7 +207,8 @@ pub fn sets() -> Result<Vec<octgn::Set>, Box<std::error::Error>> {
                         &octgn_set.name,
                         strsim::levenshtein(&hob_set.name, &octgn_set.name),
                     )
-                }).min_by_key(|&(_, value)| value)
+                })
+                .min_by_key(|&(_, value)| value)
                 .unwrap();
 
             if min_match_set.1 < MAX_SET_LEVENSHTEIN {
@@ -213,7 +216,8 @@ pub fn sets() -> Result<Vec<octgn::Set>, Box<std::error::Error>> {
             } else {
                 None
             }
-        }).collect();
+        })
+        .collect();
 
     let mut ordered_sets = octgn_sets
         .into_par_iter()
