@@ -33,9 +33,9 @@ struct CardDownload {
 }
 
 fn octgn_to_hob<'a>(
-    octgn_card_name: &String,
-    hob_map: &'a HashMap<&String, &hall_of_beorn::Card>,
-    hob_cards: &'a Vec<hall_of_beorn::Card>,
+    octgn_card_name: &str,
+    hob_map: &'a HashMap<&str, &hall_of_beorn::Card>,
+    hob_cards: &'a [hall_of_beorn::Card],
 ) -> &'a hall_of_beorn::Card {
     match hob_map.get(&octgn_card_name) {
         Some(hob_card) => hob_card,
@@ -52,11 +52,11 @@ fn octgn_to_hob<'a>(
 }
 
 fn get_image_urls(
-    octgn_cards: &Vec<octgn::Card>,
-    hob_cards: &Vec<hall_of_beorn::Card>,
+    octgn_cards: &[octgn::Card],
+    hob_cards: &[hall_of_beorn::Card],
 ) -> Vec<CardDownload> {
     let hob_map = hob_cards.iter().fold(HashMap::new(), |mut acc, card| {
-        acc.insert(&card.title, card);
+        acc.insert(card.title.as_str(), card);
 
         acc
     });
@@ -81,7 +81,7 @@ fn get_image_urls(
             CardDownload {
                 id: octgn_card.id.to_string(),
                 front_url: hob_card.front.image_path.to_owned(),
-                back_url: back_url,
+                back_url,
             }
         })
         .collect()
@@ -90,7 +90,7 @@ fn get_image_urls(
 fn fetch_images(
     work_dir: &Path,
     set_id: &str,
-    cards: &Vec<CardDownload>,
+    cards: &[CardDownload],
 ) -> Result<(), Box<std::error::Error>> {
     let set_dir = work_dir
         .join(octgn::LOTR_ID)
@@ -152,7 +152,7 @@ fn zip_directory(dir: &str, output: &str) -> Result<(), Box<std::error::Error>> 
 }
 
 fn guess_hob_card<'a>(
-    hob_cards: &'a Vec<hall_of_beorn::Card>,
+    hob_cards: &'a [hall_of_beorn::Card],
     unknown_card_name: &str,
 ) -> &'a hall_of_beorn::Card {
     let title = hob_cards
