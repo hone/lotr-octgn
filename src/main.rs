@@ -1,3 +1,4 @@
+extern crate dirs;
 extern crate docopt;
 extern crate lotr_octgn;
 #[macro_use]
@@ -7,7 +8,8 @@ use std::io::Write;
 
 use docopt::Docopt;
 
-const USAGE: &'static str = "
+const APP_DIR: &str = ".lotr-octgn";
+const USAGE: &str = "
 LotR OCTGN
 
 Usage:
@@ -29,9 +31,17 @@ fn main() {
     let args: Args = Docopt::new(USAGE)
         .and_then(|d| d.deserialize())
         .unwrap_or_else(|e| e.exit());
+    let home_dir = dirs::home_dir().unwrap_or_else(|| {
+        eprintln!("Couldn't find a home directory for caching");
+        std::process::exit(10);
+    });
+    let app_dir = home_dir.join(APP_DIR);
 
     if args.cmd_pack {
-        let sets = lotr_octgn::sets().unwrap_or_else(|_| {
+        let git_dir = app_dir.join("git").join("lotr");
+        lotr_octgn::fetch_or_update_octgn_git_dir(&git_dir).unwrap();
+
+        let sets = lotr_octgn::sets(&git_dir).unwrap_or_else(|_| {
             eprintln!("Couldn't fetch Sets");
             std::process::exit(1);
         });
@@ -43,7 +53,8 @@ fn main() {
                     eprintln!("Couldn't find that Set");
                     std::process::exit(2);
                 })
-            }).unwrap_or_else(|| {
+            })
+            .unwrap_or_else(|| {
                 // if no set id provided, allow users to pick one from list of available
                 for (index, set) in sets.iter().enumerate() {
                     println!("{}: {}", index, set.name);
@@ -67,7 +78,9 @@ fn main() {
             std::process::exit(3);
         });
     } else if args.cmd_sets {
-        match lotr_octgn::sets() {
+        let git_dir = app_dir.join("git").join("lotr");
+        lotr_octgn::fetch_or_update_octgn_git_dir(&git_dir).unwrap();
+        match lotr_octgn::sets(&git_dir) {
             Ok(sets) => {
                 for set in sets {
                     println!("{}: {}", set.name, set.id);

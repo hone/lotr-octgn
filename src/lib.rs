@@ -25,8 +25,8 @@ use rayon::prelude::*;
 use tempdir::TempDir;
 use walkdir::WalkDir;
 
-mod hall_of_beorn;
-mod octgn;
+pub mod hall_of_beorn;
+pub mod octgn;
 
 const MAX_SET_LEVENSHTEIN: usize = 5;
 #[cfg(not(test))]
@@ -199,9 +199,8 @@ pub fn pack(set: &octgn::Set) -> Result<(), Box<std::error::Error>> {
     Ok(())
 }
 
-pub fn sets() -> Result<Vec<octgn::Set>, Box<std::error::Error>> {
-    let dir = "fixtures/octgn/o8g/Sets";
-    let octgn_sets = octgn::Set::fetch_all(dir)?;
+pub fn sets(dir: &Path) -> Result<Vec<octgn::Set>, Box<std::error::Error>> {
+    let octgn_sets = octgn::Set::fetch_all(&dir)?;
     let hob_sets = hall_of_beorn::CardSet::fetch_all()?;
 
     // only care about octgn sets that also have a matching hob set
@@ -265,7 +264,7 @@ fn update_octgn_git_dir(dir: &Path) -> Result<(), git2::Error> {
     Ok(())
 }
 
-fn fetch_or_update_octgn_git_dir(dir: &Path) -> Result<(), Box<std::error::Error>> {
+pub fn fetch_or_update_octgn_git_dir(dir: &Path) -> Result<(), Box<std::error::Error>> {
     update_octgn_git_dir(&dir).or_else(|_err| {
         dir::remove(&dir)?;
         Repository::clone(OCTGN_GIT_URL, dir)?;
@@ -464,7 +463,8 @@ mod tests {
     #[test]
     fn test_sets() {
         let _m = hob_mocks::card_sets().unwrap();
-        let result = sets();
+        let dir = Path::new("fixtures/octgn/o8g/Sets");
+        let result = sets(&dir);
         assert!(result.is_ok());
 
         let card_sets = result.unwrap();

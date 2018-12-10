@@ -5,7 +5,7 @@ use std::io::Read;
 use roxmltree::Document;
 use walkdir::WalkDir;
 
-pub const LOTR_ID: &'static str = "a21af4e8-be4b-4cda-a6b6-534f9717391f";
+pub const LOTR_ID: &str = "a21af4e8-be4b-4cda-a6b6-534f9717391f";
 
 #[derive(Hash, Eq, PartialEq)]
 pub struct Card {
@@ -45,18 +45,19 @@ impl Set {
                 Card {
                     id: atts.get("id").unwrap().to_string(),
                     name: atts.get("name").unwrap().to_string(),
-                    back_name: back_name,
+                    back_name,
                 }
-            }).collect();
+            })
+            .collect();
 
         Self {
             id: atts.get("id").unwrap().to_string(),
             name: atts.get("name").unwrap().to_string(),
-            cards: cards,
+            cards,
         }
     }
 
-    pub fn fetch_all(folder: &str) -> Result<Vec<Set>, Box<std::error::Error>> {
+    pub fn fetch_all(folder: &std::path::Path) -> Result<Vec<Set>, Box<std::error::Error>> {
         let sets = WalkDir::new(folder)
             .into_iter()
             .filter_map(|e| e.ok())
@@ -72,7 +73,8 @@ impl Set {
                         let doc = Document::parse(&xml).unwrap();
                         Some(Set::new(&doc))
                     })
-            }).collect();
+            })
+            .collect();
 
         Ok(sets)
     }
@@ -143,7 +145,8 @@ mod tests {
 
     #[test]
     fn test_all() {
-        let result = Set::fetch_all("fixtures/octgn/o8g/Sets");
+        let dir = std::path::Path::new("fixtures/octgn/o8g/Sets");
+        let result = Set::fetch_all(&dir);
         assert!(result.is_ok());
 
         let sets = result.unwrap();
