@@ -1,5 +1,7 @@
+use serde_derive::*;
+
 #[cfg(not(test))]
-const HOB_URL: &'static str = "http://hallofbeorn.com";
+const HOB_URL: &str = "http://hallofbeorn.com";
 #[cfg(test)]
 const HOB_URL: &str = mockito::SERVER_URL;
 

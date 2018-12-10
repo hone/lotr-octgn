@@ -40,19 +40,19 @@ impl Set {
                     .find(|child| child.is_element() && child.tag_name().name() == "alternate")
                     .map(|alternative_node| {
                         let atts = attributes(alternative_node.attributes());
-                        atts.get("name").unwrap().to_string()
+                        atts["name"].to_string()
                     });
                 Card {
-                    id: atts.get("id").unwrap().to_string(),
-                    name: atts.get("name").unwrap().to_string(),
+                    id: atts["id"].to_string(),
+                    name: atts["name"].to_string(),
                     back_name,
                 }
             })
             .collect();
 
         Self {
-            id: atts.get("id").unwrap().to_string(),
-            name: atts.get("name").unwrap().to_string(),
+            id: atts["id"].to_string(),
+            name: atts["name"].to_string(),
             cards,
         }
     }

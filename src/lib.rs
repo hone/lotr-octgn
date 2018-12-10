@@ -1,19 +1,3 @@
-extern crate fs_extra;
-extern crate git2;
-#[cfg(test)]
-extern crate mockito;
-extern crate rayon;
-extern crate reqwest;
-extern crate roxmltree;
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-extern crate strsim;
-extern crate tempdir;
-extern crate walkdir;
-extern crate zip;
-
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Read, Write};

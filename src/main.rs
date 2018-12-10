@@ -1,12 +1,7 @@
-extern crate dirs;
-extern crate docopt;
-extern crate lotr_octgn;
-#[macro_use]
-extern crate serde_derive;
-
 use std::io::Write;
 
 use docopt::Docopt;
+use serde_derive::Deserialize;
 
 const APP_DIR: &str = ".lotr-octgn";
 const USAGE: &str = "
