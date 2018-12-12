@@ -32,7 +32,7 @@ impl Set {
             .unwrap();
         let cards = cards_node
             .children()
-            .filter(|card_node| card_node.attributes().len() > 0)
+            .filter(|card_node| !card_node.attributes().is_empty())
             .map(|card_node| {
                 let atts = attributes(card_node.attributes());
                 let back_name = card_node
