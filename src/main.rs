@@ -34,9 +34,10 @@ fn main() {
 
     if args.cmd_pack {
         let git_dir = app_dir.join("git").join("lotr");
-        lotr_octgn::fetch_or_update_octgn_git_dir(&git_dir).unwrap();
+        let git_cache = lotr_octgn::GitCache::new(lotr_octgn::OCTGN_GIT_URL.to_string(), &git_dir);
+        git_cache.update_or_fetch().unwrap();
 
-        let sets = lotr_octgn::sets(&git_dir).unwrap_or_else(|_| {
+        let sets = lotr_octgn::sets(&git_cache.sets_dir).unwrap_or_else(|_| {
             eprintln!("Couldn't fetch Sets");
             std::process::exit(1);
         });
@@ -74,8 +75,9 @@ fn main() {
         });
     } else if args.cmd_sets {
         let git_dir = app_dir.join("git").join("lotr");
-        lotr_octgn::fetch_or_update_octgn_git_dir(&git_dir).unwrap();
-        match lotr_octgn::sets(&git_dir) {
+        let git_cache = lotr_octgn::GitCache::new(lotr_octgn::OCTGN_GIT_URL.to_string(), &git_dir);
+        git_cache.update_or_fetch().unwrap();
+        match lotr_octgn::sets(&git_cache.sets_dir) {
             Ok(sets) => {
                 for set in sets {
                     println!("{}: {}", set.name, set.id);
