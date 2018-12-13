@@ -37,8 +37,8 @@ fn main() {
         let git_cache = lotr_octgn::GitCache::new(lotr_octgn::OCTGN_GIT_URL.to_string(), &git_dir);
         git_cache.update_or_fetch().unwrap();
 
-        let sets = lotr_octgn::sets(&git_cache.sets_dir).unwrap_or_else(|_| {
-            eprintln!("Couldn't fetch Sets");
+        let sets = lotr_octgn::sets(&git_cache.sets_dir).unwrap_or_else(|err| {
+            eprintln!("Couldn't fetch Sets: {:?}", err);
             std::process::exit(1);
         });
 

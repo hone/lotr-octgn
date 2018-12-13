@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt;
 use std::fs::File;
 use std::io::Read;
 
@@ -7,14 +8,35 @@ use walkdir::WalkDir;
 
 pub const LOTR_ID: &str = "a21af4e8-be4b-4cda-a6b6-534f9717391f";
 
-#[derive(Hash, Eq, PartialEq)]
+#[derive(Debug)]
+pub struct PropertyMissingError {
+    property: String,
+}
+
+impl std::error::Error for PropertyMissingError {}
+
+impl PropertyMissingError {
+    pub fn new(property: &str) -> Self {
+        PropertyMissingError {
+            property: property.to_owned(),
+        }
+    }
+}
+
+impl fmt::Display for PropertyMissingError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Could not find property '{}'.", self.property)
+    }
+}
+
+#[derive(Debug, Hash, Eq, PartialEq)]
 pub struct Card {
     pub id: String,
     pub name: String,
     pub back_name: Option<String>,
 }
 
-#[derive(Hash, Eq, PartialEq)]
+#[derive(Debug, Hash, Eq, PartialEq)]
 pub struct Set {
     pub id: String,
     pub name: String,
@@ -22,14 +44,15 @@ pub struct Set {
 }
 
 impl Set {
-    pub fn new(doc: &Document) -> Self {
+    #![allow(clippy::new_ret_no_self)]
+    pub fn new(doc: &Document) -> Result<Set, Box<std::error::Error>> {
         let node = doc.root().first_child().unwrap();
         let atts = attributes(node.attributes());
 
         let cards_node = node
             .children()
             .find(|child| child.is_element() && child.tag_name().name() == "cards")
-            .unwrap();
+            .ok_or_else(|| PropertyMissingError::new("cards"))?;
         let cards = cards_node
             .children()
             .filter(|card_node| !card_node.attributes().is_empty())
@@ -50,33 +73,44 @@ impl Set {
             })
             .collect();
 
-        Self {
+        Ok(Self {
             id: atts["id"].to_string(),
             name: atts["name"].to_string(),
             cards,
-        }
+        })
     }
 
     pub fn fetch_all(folder: &std::path::Path) -> Result<Vec<Set>, Box<std::error::Error>> {
         let sets = WalkDir::new(folder)
             .into_iter()
             .filter_map(|e| e.ok())
-            .filter_map(|entry| {
+            .filter(|entry| {
                 let path = entry.path();
 
-                path.extension()
-                    .filter(|extension| extension.to_str().unwrap() == "xml")
-                    .and_then(|_| {
-                        let mut file = File::open(&path).unwrap();
-                        let mut xml = String::new();
-                        file.read_to_string(&mut xml).unwrap();
-                        let doc = Document::parse(&xml).unwrap();
-                        Some(Set::new(&doc))
-                    })
+                match path.extension() {
+                    None => false,
+                    Some(extension) => extension == "xml",
+                }
             })
-            .collect();
+            .map(|entry| {
+                let path = entry.path();
+                let mut file = File::open(&path)?;
+                let mut xml = String::new();
+                file.read_to_string(&mut xml)?;
+                let doc = Document::parse(&xml)?;
+                Set::new(&doc)
+            })
+            .collect::<Vec<Result<Set, Box<std::error::Error>>>>();
 
-        Ok(sets)
+        if sets.iter().any(|result| result.is_err()) {
+            Err(sets
+                .into_iter()
+                .find(|result| result.is_err())
+                .unwrap()
+                .unwrap_err())
+        } else {
+            Ok(sets.into_iter().map(|result| result.unwrap()).collect())
+        }
     }
 }
 
@@ -92,8 +126,7 @@ fn attributes<'a>(atts: &'a [roxmltree::Attribute]) -> HashMap<&'a str, &'a str>
 mod tests {
     use super::*;
 
-    use std::fs::File;
-    use std::io::Read;
+    use std::{fs::File, io::Read, path::Path};
 
     #[test]
     fn test_new() {
@@ -102,7 +135,7 @@ mod tests {
         file.read_to_string(&mut xml).unwrap();
         let doc = Document::parse(&xml).unwrap();
 
-        let set = Set::new(&doc);
+        let set = Set::new(&doc).unwrap();
         assert_eq!(&set.name, "The Wilds of Rhovanion");
         assert_eq!(&set.id, "e37145f0-8970-48d3-93bc-cef612226bda");
         // Woodman Village is 2 cards. Backside is Haldan
@@ -137,7 +170,7 @@ mod tests {
  </cards>
 </set>"#;
         let doc = Document::parse(&xml).unwrap();
-        let set = Set::new(&doc);
+        let set = Set::new(&doc).unwrap();
 
         let card = set.cards.get(0).unwrap();
         assert!(card.back_name.is_some());
@@ -145,11 +178,18 @@ mod tests {
 
     #[test]
     fn test_all() {
-        let dir = std::path::Path::new("fixtures/octgn/o8g/Sets");
+        let dir = Path::new("fixtures/octgn/o8g/Sets");
         let result = Set::fetch_all(&dir);
         assert!(result.is_ok());
 
         let sets = result.unwrap();
         assert_eq!(sets.len(), 107);
+    }
+
+    #[test]
+    fn test_all_err() {
+        let dir = Path::new("fixtures/octgn");
+        let result = Set::fetch_all(&dir);
+        assert!(result.is_err());
     }
 }
