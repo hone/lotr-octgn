@@ -25,21 +25,9 @@ impl<'a> GitCache<'a> {
         let mut remote = repo.find_remote("origin")?;
         remote.fetch(&["master"], None, None)?;
 
-        let branch_error = git2::Error::from_str("Couldn't find branch 'origin/master'");
-        let origin_master_tuple = repo
-            .branches(Some(git2::BranchType::Remote))?
-            .find(|branch_tuple| {
-                let (branch, _branch_type) = branch_tuple.as_ref().unwrap();
-                branch.name().unwrap().unwrap() == "origin/master"
-            })
-            .ok_or(branch_error)?;
-
-        let (origin_master, _branch_type) = origin_master_tuple?;
-
-        repo.checkout_tree(
-            &origin_master.into_reference().peel_to_tree()?.as_object(),
-            None,
-        )?;
+        let oid = repo.refname_to_id("refs/remotes/origin/master")?;
+        let object = repo.find_object(oid, None)?;
+        repo.reset(&object, git2::ResetType::Hard, None)?;
 
         Ok(())
     }
@@ -80,7 +68,7 @@ mod tests {
         let cache_git_dir = tmp_dir.path().join("cache");
         // must be called "fixtures/octgn", so the git repo is valid
         let origin_git_dir = tmp_dir.path().join("fixtures/octgn");
-        let git_cache = GitCache::new(GIT_URL.to_string(), &cache_git_dir);
+        let git_cache = GitCache::new(origin_git_dir.to_str().unwrap().to_string(), &cache_git_dir);
         let mut copy_options = dir::CopyOptions::new();
         copy_options.copy_inside = true;
 
