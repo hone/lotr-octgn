@@ -94,9 +94,10 @@ impl Set {
             })
             .map(|entry| {
                 let path = entry.path();
-                let mut file = File::open(&path)?;
+                let file = File::open(&path)?;
+                let mut reader = std::io::BufReader::new(file);
                 let mut xml = String::new();
-                file.read_to_string(&mut xml)?;
+                reader.read_to_string(&mut xml)?;
                 let doc = Document::parse(&xml)?;
                 Set::new(&doc)
             })
