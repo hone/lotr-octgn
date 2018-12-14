@@ -3,6 +3,7 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::Path;
 
+use indicatif::ProgressBar;
 use rayon::prelude::*;
 use tempdir::TempDir;
 use walkdir::WalkDir;
@@ -89,6 +90,8 @@ fn fetch_images(
         .join("Cards");
     std::fs::create_dir_all(&set_dir)?;
 
+    let pb = ProgressBar::new(cards.len() as u64);
+
     cards.par_iter().for_each(|card| {
         {
             let mut file_path = set_dir.join(&card.id);
@@ -96,18 +99,17 @@ fn fetch_images(
             let mut file = File::create(&file_path).expect("can't create file");
             let mut resp = reqwest::get(&card.front_url).expect("can't process request");
             std::io::copy(&mut resp, &mut file).expect("can't write download to file");
-            println!("Front: {}", &file_path.to_str().unwrap());
         }
 
         if card.back_url.is_some() {
             let back_url = card.back_url.as_ref().unwrap();
             // set_extension replaces the .B
             let file_path = set_dir.join(format!("{}.B.jpg", &card.id));
-            println!("Back: {}", &file_path.to_str().unwrap());
             let mut file = File::create(&file_path).expect("can't create file");
             let mut resp = reqwest::get(back_url).expect("can't process request");
             std::io::copy(&mut resp, &mut file).expect("can't write download to file");
         }
+        pb.inc(1);
     });
 
     Ok(())
