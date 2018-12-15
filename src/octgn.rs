@@ -9,11 +9,53 @@ use walkdir::WalkDir;
 pub const LOTR_ID: &str = "a21af4e8-be4b-4cda-a6b6-534f9717391f";
 
 #[derive(Debug)]
+pub struct NoMatchingGameError {
+    game_id: String,
+}
+
+impl std::error::Error for NoMatchingGameError {}
+
+impl NoMatchingGameError {
+    pub fn new(game_id: &str) -> Self {
+        Self {
+            game_id: game_id.to_string(),
+        }
+    }
+}
+
+impl fmt::Display for NoMatchingGameError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "This is not a valid Game ID: '{}'.", self.game_id)
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum Game {
+    LOTR,
+}
+
+impl Game {
+    fn from(s: &str) -> Option<Self> {
+        if s == LOTR_ID {
+            Some(Game::LOTR)
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct PropertyMissingError {
     property: String,
 }
 
 impl std::error::Error for PropertyMissingError {}
+
+impl fmt::Display for PropertyMissingError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Could not find property '{}'.", self.property)
+    }
+}
 
 impl PropertyMissingError {
     pub fn new(property: &str) -> Self {
@@ -23,9 +65,30 @@ impl PropertyMissingError {
     }
 }
 
-impl fmt::Display for PropertyMissingError {
+#[derive(Debug, Eq, PartialEq)]
+pub struct AttributeMissingError {
+    tag: String,
+    attribute: String,
+}
+
+impl std::error::Error for AttributeMissingError {}
+
+impl fmt::Display for AttributeMissingError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Could not find property '{}'.", self.property)
+        write!(
+            f,
+            "<{}> is missing attribute '{}'.",
+            self.tag, self.attribute
+        )
+    }
+}
+
+impl AttributeMissingError {
+    pub fn new(tag: &str, attribute: &str) -> Self {
+        Self {
+            tag: tag.to_string(),
+            attribute: attribute.to_string(),
+        }
     }
 }
 
@@ -36,11 +99,12 @@ pub struct Card {
     pub back_name: Option<String>,
 }
 
-#[derive(Debug, Hash, Eq, PartialEq)]
+#[derive(Debug)]
 pub struct Set {
     pub id: String,
     pub name: String,
     pub cards: Vec<Card>,
+    pub game: Game,
 }
 
 impl Set {
@@ -48,6 +112,18 @@ impl Set {
     pub fn new(doc: &Document) -> Result<Set, Box<std::error::Error>> {
         let node = doc.root().first_child().unwrap();
         let atts = attributes(node.attributes());
+        let id = atts
+            .get("id")
+            .ok_or_else(|| AttributeMissingError::new(node.tag_name().name(), "id"))?
+            .to_string();
+        let name = atts
+            .get("name")
+            .ok_or_else(|| AttributeMissingError::new(node.tag_name().name(), "name"))?
+            .to_string();
+        let game_id = atts
+            .get("gameId")
+            .ok_or_else(|| AttributeMissingError::new(node.tag_name().name(), "gameId"))?;
+        let game = Game::from(game_id).ok_or_else(|| NoMatchingGameError::new(game_id))?;
 
         let cards_node = node
             .children()
@@ -74,9 +150,10 @@ impl Set {
             .collect();
 
         Ok(Self {
-            id: atts["id"].to_string(),
-            name: atts["name"].to_string(),
+            id,
+            name,
             cards,
+            game,
         })
     }
 
@@ -139,8 +216,72 @@ mod tests {
         let set = Set::new(&doc).unwrap();
         assert_eq!(&set.name, "The Wilds of Rhovanion");
         assert_eq!(&set.id, "e37145f0-8970-48d3-93bc-cef612226bda");
+        assert_eq!(set.game, Game::LOTR);
         // Woodman Village is 2 cards. Backside is Haldan
         assert_eq!(set.cards.len(), 79);
+    }
+
+    #[test]
+    fn test_new_missing_id() {
+        let xml = r#"
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<set xmlns:noNamespaceSchemaLocation="CardSet.xsd" name="The Wilds of Rhovanion" gameId="a21af4e8-be4b-4cda-a6b6-534f9717391f" gameVersion="2.3.6.0" version="1.0.0">"
+ <cards>
+ </cards>
+</set>"#;
+        let doc = Document::parse(&xml).unwrap();
+        let result = Set::new(&doc);
+
+        assert!(result.is_err());
+        assert_eq!(
+            *result
+                .unwrap_err()
+                .downcast::<AttributeMissingError>()
+                .unwrap(),
+            AttributeMissingError::new("set", "id")
+        );
+    }
+
+    #[test]
+    fn test_new_missing_name() {
+        let xml = r#"
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<set xmlns:noNamespaceSchemaLocation="CardSet.xsd" gameId="a21af4e8-be4b-4cda-a6b6-534f9717391f" id="e37145f0-8970-48d3-93bc-cef612226bda" gameVersion="2.3.6.0" version="1.0.0">"
+ <cards>
+ </cards>
+</set>"#;
+        let doc = Document::parse(&xml).unwrap();
+        let result = Set::new(&doc);
+
+        assert!(result.is_err());
+        assert_eq!(
+            *result
+                .unwrap_err()
+                .downcast::<AttributeMissingError>()
+                .unwrap(),
+            AttributeMissingError::new("set", "name")
+        );
+    }
+
+    #[test]
+    fn test_new_missing_game_id() {
+        let xml = r#"
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<set xmlns:noNamespaceSchemaLocation="CardSet.xsd" name="The Wilds of Rhovanion" id="e37145f0-8970-48d3-93bc-cef612226bda" gameVersion="2.3.6.0" version="1.0.0">
+ <cards>
+ </cards>
+</set>"#;
+        let doc = Document::parse(&xml).unwrap();
+        let result = Set::new(&doc);
+
+        assert!(result.is_err());
+        assert_eq!(
+            *result
+                .unwrap_err()
+                .downcast::<AttributeMissingError>()
+                .unwrap(),
+            AttributeMissingError::new("set", "gameId")
+        );
     }
 
     #[test]
@@ -178,7 +319,7 @@ mod tests {
     }
 
     #[test]
-    fn test_all() {
+    fn test_fetch_all() {
         let dir = Path::new("fixtures/octgn/o8g/Sets");
         let result = Set::fetch_all(&dir);
         assert!(result.is_ok());
@@ -188,7 +329,7 @@ mod tests {
     }
 
     #[test]
-    fn test_all_err() {
+    fn test_fetch_all_err() {
         let dir = Path::new("fixtures/octgn");
         let result = Set::fetch_all(&dir);
         assert!(result.is_err());
