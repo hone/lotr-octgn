@@ -225,6 +225,7 @@ pub fn sets(dir: &Path) -> Result<Vec<octgn::Set>, Box<std::error::Error>> {
 
 #[cfg(test)]
 mod tests {
+    pub mod fixtures;
     pub mod mocks;
 
     use self::mocks::hall_of_beorn as hob_mocks;
@@ -413,7 +414,7 @@ mod tests {
     #[test]
     fn test_sets() {
         let _m = hob_mocks::card_sets().unwrap();
-        let dir = Path::new("fixtures/octgn/o8g/Sets");
+        let dir = Path::new(fixtures::lotr::octgn::SETS);
         let result = sets(&dir);
         assert!(result.is_ok());
 

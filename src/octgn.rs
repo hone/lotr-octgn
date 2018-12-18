@@ -7,6 +7,7 @@ use roxmltree::Document;
 use walkdir::WalkDir;
 
 pub const LOTR_ID: &str = "a21af4e8-be4b-4cda-a6b6-534f9717391f";
+pub const ARKHAM_HORROR_ID: &str = "a6d114c7-2e2a-4896-ad8c-0330605c90bf";
 
 #[derive(Debug)]
 pub struct NoMatchingGameError {
@@ -32,14 +33,15 @@ impl fmt::Display for NoMatchingGameError {
 #[derive(Debug, Eq, PartialEq)]
 pub enum Game {
     LOTR,
+    ArkhamHorror,
 }
 
 impl Game {
     fn from(s: &str) -> Option<Self> {
-        if s == LOTR_ID {
-            Some(Game::LOTR)
-        } else {
-            None
+        match s {
+            LOTR_ID => Some(Game::LOTR),
+            ARKHAM_HORROR_ID => Some(Game::ArkhamHorror),
+            _ => None,
         }
     }
 }
@@ -203,12 +205,13 @@ fn attributes<'a>(atts: &'a [roxmltree::Attribute]) -> HashMap<&'a str, &'a str>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tests::fixtures;
 
     use std::{fs::File, io::Read, path::Path};
 
     #[test]
     fn test_new() {
-        let mut file = File::open("fixtures/set.xml").unwrap();
+        let mut file = File::open(fixtures::lotr::octgn::SET_XML).unwrap();
         let mut xml = String::new();
         file.read_to_string(&mut xml).unwrap();
         let doc = Document::parse(&xml).unwrap();
@@ -219,6 +222,21 @@ mod tests {
         assert_eq!(set.game, Game::LOTR);
         // Woodman Village is 2 cards. Backside is Haldan
         assert_eq!(set.cards.len(), 79);
+    }
+
+    #[test]
+    fn test_new_ah() {
+        //let mut file =
+        //    File::open("fixtures/arkham-horror/o8g/Sets/Dunwich Legacy/set.xml").unwrap();
+        //let mut xml = String::new();
+        //file.read_to_string(&mut xml).unwrap();
+        //let doc = Document::parse(&xml).unwrap();
+
+        //let set = Set::new(&doc).unwrap();
+        //assert_eq!(&set.name, "Dunwich Legacy");
+        //assert_eq!(&set.id, "dfa9b3bf-58f2-4611-ae55-e25562726d62");
+        //assert_eq!(set.game, Game::ArkhamHorror);
+        //assert_eq!(set.cards.len(), 109);
     }
 
     #[test]
@@ -320,7 +338,7 @@ mod tests {
 
     #[test]
     fn test_fetch_all() {
-        let dir = Path::new("fixtures/octgn/o8g/Sets");
+        let dir = Path::new(fixtures::lotr::octgn::SETS);
         let result = Set::fetch_all(&dir);
         assert!(result.is_ok());
 
@@ -330,7 +348,7 @@ mod tests {
 
     #[test]
     fn test_fetch_all_err() {
-        let dir = Path::new("fixtures/octgn");
+        let dir = Path::new("fixtures/lotr");
         let result = Set::fetch_all(&dir);
         assert!(result.is_err());
     }

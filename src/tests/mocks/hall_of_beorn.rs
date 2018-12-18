@@ -1,10 +1,12 @@
+use crate::tests::fixtures;
+
 use std::fs::File;
 use std::io::Read;
 
 use mockito::{mock, Mock};
 
 pub fn card_set(set_name: &str) -> Result<Mock, Box<std::error::Error>> {
-    let mut file = File::open("fixtures/hob/search.json")?;
+    let mut file = File::open(fixtures::lotr::hall_of_beorn::SEARCH)?;
     let mut body = String::new();
     file.read_to_string(&mut body)?;
 
@@ -22,7 +24,7 @@ pub fn card_set(set_name: &str) -> Result<Mock, Box<std::error::Error>> {
 }
 
 pub fn card_sets() -> Result<Mock, std::io::Error> {
-    let mut file = File::open("fixtures/hob/card_sets.json")?;
+    let mut file = File::open(fixtures::lotr::hall_of_beorn::CARD_SETS)?;
     let mut body = String::new();
 
     file.read_to_string(&mut body)?;

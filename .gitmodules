@@ -1,3 +1,3 @@
-[submodule "fixtures/octgn"]
-	path = fixtures/octgn
+[submodule "fixtures/lotr/octgn"]
+	path = fixtures/lotr/octgn
 	url = https://github.com/GeckoTH/Lord-of-the-Rings.git

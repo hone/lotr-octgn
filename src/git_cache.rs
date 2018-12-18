@@ -45,12 +45,13 @@ impl<'a> GitCache<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tests::fixtures;
     use std::{fs::File, io::Write};
 
     use fs_extra::dir;
     use tempdir::TempDir;
 
-    const GIT_URL: &str = "fixtures/octgn";
+    const GIT_URL: &str = fixtures::lotr::octgn::GIT;
 
     #[test]
     fn test_fetch_or_update_octgn_git_dir_new() {
@@ -66,9 +67,8 @@ mod tests {
     fn test_fetch_or_update_octgn_git_dir_existing() {
         let tmp_dir = TempDir::new("octgn").unwrap();
         let cache_git_dir = tmp_dir.path().join("cache");
-        // must be called "fixtures/octgn", so the git repo is valid
-        let origin_git_dir = tmp_dir.path().join("fixtures/octgn");
-        let git_cache = GitCache::new(origin_git_dir.to_str().unwrap().to_string(), &cache_git_dir);
+        // must be called "fixtures/octgn/lotr", so the git repo is valid
+        let origin_git_dir = tmp_dir.path().join("fixtures/lotr/octgn");
         let mut copy_options = dir::CopyOptions::new();
         copy_options.copy_inside = true;
 
@@ -87,9 +87,10 @@ mod tests {
             .join(".git")
             .join("modules")
             .join("fixtures")
+            .join("lotr")
             .join("octgn");
         dir::copy(
-            ".git/modules/fixtures/octgn",
+            ".git/modules/fixtures/lotr/octgn",
             &submodule_git_dir,
             &copy_options,
         )
@@ -102,6 +103,8 @@ mod tests {
 
         // add new commit
         let origin_repo = Repository::open(&origin_git_dir).unwrap();
+        // ensure HEAD is pointing to master, so when we commit it applies on the branch
+        origin_repo.set_head("refs/heads/master").unwrap();
         let head_ref = origin_repo.head().unwrap();
         let head_commit = head_ref.peel_to_commit().unwrap();
         let mut index = origin_repo.index().unwrap();
@@ -121,6 +124,7 @@ mod tests {
             )
             .unwrap();
 
+        let git_cache = GitCache::new(origin_git_dir.to_str().unwrap().to_string(), &cache_git_dir);
         let result = git_cache.update_or_fetch();
         assert!(result.is_ok());
         assert!(cache_git_dir.join("new_file.txt").exists());
