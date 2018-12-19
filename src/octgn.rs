@@ -210,8 +210,8 @@ mod tests {
     use std::{fs::File, io::Read, path::Path};
 
     #[test]
-    fn test_new() {
-        let mut file = File::open(fixtures::lotr::octgn::SET_XML).unwrap();
+    fn test_new_lotr() {
+        let mut file = File::open(fixtures::lotr::octgn::set("The Wilds of Rhovanion")).unwrap();
         let mut xml = String::new();
         file.read_to_string(&mut xml).unwrap();
         let doc = Document::parse(&xml).unwrap();
@@ -226,17 +226,16 @@ mod tests {
 
     #[test]
     fn test_new_ah() {
-        //let mut file =
-        //    File::open("fixtures/arkham-horror/o8g/Sets/Dunwich Legacy/set.xml").unwrap();
-        //let mut xml = String::new();
-        //file.read_to_string(&mut xml).unwrap();
-        //let doc = Document::parse(&xml).unwrap();
+        let mut file = File::open(fixtures::arkham_horror::octgn::set("Dunwich Legacy")).unwrap();
+        let mut xml = String::new();
+        file.read_to_string(&mut xml).unwrap();
+        let doc = Document::parse(&xml).unwrap();
 
-        //let set = Set::new(&doc).unwrap();
-        //assert_eq!(&set.name, "Dunwich Legacy");
-        //assert_eq!(&set.id, "dfa9b3bf-58f2-4611-ae55-e25562726d62");
-        //assert_eq!(set.game, Game::ArkhamHorror);
-        //assert_eq!(set.cards.len(), 109);
+        let set = Set::new(&doc).unwrap();
+        assert_eq!(&set.name, "Dunwich Legacy");
+        assert_eq!(&set.id, "dfa9b3bf-58f2-4611-ae55-e25562726d62");
+        assert_eq!(set.game, Game::ArkhamHorror);
+        assert_eq!(set.cards.len(), 109);
     }
 
     #[test]

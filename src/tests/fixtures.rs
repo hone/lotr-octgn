@@ -5,8 +5,21 @@ pub mod lotr {
     }
 
     pub mod octgn {
-        pub const GIT: &str = "fixtures/lotr/octgn";
+        pub const BASE: &str = "fixtures/lotr/octgn";
         pub const SETS: &str = "fixtures/lotr/octgn/o8g/Sets";
-        pub const SET_XML: &str = "fixtures/lotr/set.xml";
+
+        pub fn set(name: &str) -> String {
+            format!("{}/{}/set.xml", SETS, name)
+        }
+    }
+}
+
+pub mod arkham_horror {
+    pub mod octgn {
+        pub const SETS: &str = "fixtures/arkham-horror/octgn/o8g/Sets";
+
+        pub fn set(name: &str) -> String {
+            format!("{}/{}/set.xml", SETS, name)
+        }
     }
 }
