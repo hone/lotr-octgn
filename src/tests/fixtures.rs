@@ -15,6 +15,10 @@ pub mod lotr {
 }
 
 pub mod arkham_horror {
+    pub mod arkhamdb {
+        pub const PACKS: &str = "fixtures/arkham-horror/arkhamdb/packs.json";
+    }
+
     pub mod octgn {
         pub const SETS: &str = "fixtures/arkham-horror/octgn/o8g/Sets";
 

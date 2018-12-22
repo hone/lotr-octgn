@@ -5,6 +5,7 @@ authors = ["Terence Lee <hone02@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+chrono = "0.4"
 dirs = "1.0"
 docopt = "1"
 fs_extra = "1.1.0"
