@@ -32,7 +32,7 @@ impl<'a> GitCache<'a> {
         Ok(())
     }
 
-    pub fn update_or_fetch(&self) -> Result<(), Box<std::error::Error>> {
+    pub fn update_or_fetch(&self) -> Result<(), Box<dyn std::error::Error>> {
         self.update().or_else(|_err| {
             fs_extra::dir::remove(&self.cache_dir)?;
             Repository::clone(&self.git_url, &self.cache_dir)?;

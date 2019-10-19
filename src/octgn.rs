@@ -111,7 +111,7 @@ pub struct Set {
 
 impl Set {
     #![allow(clippy::new_ret_no_self)]
-    pub fn new(doc: &Document) -> Result<Set, Box<std::error::Error>> {
+    pub fn new(doc: &Document) -> Result<Set, Box<dyn std::error::Error>> {
         let node = doc.root().first_child().unwrap();
         let atts = attributes(node.attributes());
         let id = atts
@@ -159,7 +159,7 @@ impl Set {
         })
     }
 
-    pub fn fetch_all(folder: &std::path::Path) -> Result<Vec<Set>, Box<std::error::Error>> {
+    pub fn fetch_all(folder: &std::path::Path) -> Result<Vec<Set>, Box<dyn std::error::Error>> {
         let sets = WalkDir::new(folder)
             .into_iter()
             .filter_map(|e| e.ok())
@@ -180,7 +180,7 @@ impl Set {
                 let doc = Document::parse(&xml)?;
                 Set::new(&doc)
             })
-            .collect::<Vec<Result<Set, Box<std::error::Error>>>>();
+            .collect::<Vec<Result<Set, Box<dyn std::error::Error>>>>();
 
         if sets.iter().any(|result| result.is_err()) {
             Err(sets

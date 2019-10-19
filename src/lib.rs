@@ -82,7 +82,7 @@ fn fetch_images(
     work_dir: &Path,
     set_id: &str,
     cards: &[CardDownload],
-) -> Result<(), Box<std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error>> {
     let set_dir = work_dir
         .join(octgn::LOTR_ID)
         .join("Sets")
@@ -115,7 +115,7 @@ fn fetch_images(
     Ok(())
 }
 
-fn zip_directory(dir: &str, output: &str) -> Result<(), Box<std::error::Error>> {
+fn zip_directory(dir: &str, output: &str) -> Result<(), Box<dyn std::error::Error>> {
     let file = File::create(output)?;
     let mut zip = zip::ZipWriter::new(file);
     let options =
@@ -165,7 +165,7 @@ fn guess_hob_card<'a>(
         .unwrap()
 }
 
-pub fn pack(set: &octgn::Set) -> Result<(), Box<std::error::Error>> {
+pub fn pack(set: &octgn::Set) -> Result<(), Box<dyn std::error::Error>> {
     println!("{}: {}", set.name, set.id);
     println!("Fetching data from Hall of Beorn");
     let hob_cards = hall_of_beorn::Card::fetch_all(&set.name)?;
@@ -183,7 +183,7 @@ pub fn pack(set: &octgn::Set) -> Result<(), Box<std::error::Error>> {
     Ok(())
 }
 
-pub fn sets(dir: &Path) -> Result<Vec<octgn::Set>, Box<std::error::Error>> {
+pub fn sets(dir: &Path) -> Result<Vec<octgn::Set>, Box<dyn std::error::Error>> {
     let octgn_sets = octgn::Set::fetch_all(&dir)?;
     let hob_sets = hall_of_beorn::CardSet::fetch_all()?;
 
