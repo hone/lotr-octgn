@@ -5,7 +5,7 @@ use std::io::Read;
 
 use mockito::{mock, Mock};
 
-pub fn card_set(set_name: &str) -> Result<Mock, Box<std::error::Error>> {
+pub fn card_set(set_name: &str) -> Result<Mock, Box<dyn std::error::Error>> {
     let mut file = File::open(fixtures::lotr::hall_of_beorn::SEARCH)?;
     let mut body = String::new();
     file.read_to_string(&mut body)?;

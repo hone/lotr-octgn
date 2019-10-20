@@ -24,11 +24,13 @@ pub struct Card {
 }
 
 impl Card {
-    pub fn fetch_all(set_name: &str) -> Result<Vec<Card>, reqwest::Error> {
+    pub async fn fetch_all(set_name: &str) -> Result<Vec<Card>, reqwest::Error> {
         let cards: Vec<Card> = reqwest::Client::new()
             .get(&format!("{}/Export/Search?CardSet={}", HOB_URL, set_name))
-            .send()?
-            .json()?;
+            .send()
+	    .await?
+            .json()
+            .await?;
 
         Ok(cards)
     }
@@ -66,11 +68,13 @@ pub struct CardSet {
 }
 
 impl CardSet {
-    pub fn fetch_all() -> Result<Vec<CardSet>, reqwest::Error> {
+    pub async fn fetch_all() -> Result<Vec<CardSet>, reqwest::Error> {
         let card_sets = reqwest::Client::new()
             .get(&format!("{}/Export/CardSets", HOB_URL))
-            .send()?
-            .json()?;
+            .send()
+	    .await?
+            .json()
+            .await?;
 
         Ok(card_sets)
     }
@@ -82,12 +86,14 @@ mod tests {
 
     use crate::tests::mocks::hall_of_beorn as mocks;
 
+    use tokio_test::block_on;
+
     #[test]
     fn test_card_fetch_all() {
         let set = "The Wilds of Rhovanion";
         let _m = mocks::card_set(&set);
 
-        let result = Card::fetch_all(set);
+        let result = block_on(Card::fetch_all(set));
         assert!(result.is_ok());
 
         let cards = result.unwrap();
@@ -97,7 +103,7 @@ mod tests {
     #[test]
     fn test_card_sets_fetch_all() {
         let _m = mocks::card_sets();
-        let result = CardSet::fetch_all();
+        let result = block_on(CardSet::fetch_all());
         assert!(result.is_ok());
 
         let card_sets = result.unwrap();

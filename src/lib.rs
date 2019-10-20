@@ -97,7 +97,7 @@ fn fetch_images(
             let mut file_path = set_dir.join(&card.id);
             file_path.set_extension("jpg");
             let mut file = File::create(&file_path).expect("can't create file");
-            let mut resp = reqwest::get(&card.front_url).expect("can't process request");
+            let mut resp = reqwest::blocking::get(&card.front_url).expect("can't process request");
             std::io::copy(&mut resp, &mut file).expect("can't write download to file");
         }
 
@@ -106,7 +106,7 @@ fn fetch_images(
             // set_extension replaces the .B
             let file_path = set_dir.join(format!("{}.B.jpg", &card.id));
             let mut file = File::create(&file_path).expect("can't create file");
-            let mut resp = reqwest::get(back_url).expect("can't process request");
+            let mut resp = reqwest::blocking::get(back_url).expect("can't process request");
             std::io::copy(&mut resp, &mut file).expect("can't write download to file");
         }
         pb.inc(1);
@@ -165,10 +165,10 @@ fn guess_hob_card<'a>(
         .unwrap()
 }
 
-pub fn pack(set: &octgn::Set) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn pack(set: &octgn::Set) -> Result<(), Box<dyn std::error::Error>> {
     println!("{}: {}", set.name, set.id);
     println!("Fetching data from Hall of Beorn");
-    let hob_cards = hall_of_beorn::Card::fetch_all(&set.name)?;
+    let hob_cards = hall_of_beorn::Card::fetch_all(&set.name).await?;
     println!("Generating image urls");
     let card_downloads = get_image_urls(&set.cards, &hob_cards);
 
@@ -183,9 +183,9 @@ pub fn pack(set: &octgn::Set) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-pub fn sets(dir: &Path) -> Result<Vec<octgn::Set>, Box<dyn std::error::Error>> {
+pub async fn sets(dir: &Path) -> Result<Vec<octgn::Set>, Box<dyn std::error::Error>> {
     let octgn_sets = octgn::Set::fetch_all(&dir)?;
-    let hob_sets = hall_of_beorn::CardSet::fetch_all()?;
+    let hob_sets = hall_of_beorn::CardSet::fetch_all().await?;
 
     // only care about octgn sets that also have a matching hob set
     let ordered_set_names: Vec<String> = hob_sets
@@ -231,13 +231,14 @@ mod tests {
     use self::mocks::hall_of_beorn as hob_mocks;
     use super::*;
 
+    use tokio_test::block_on;
     use mockito::mock;
 
     fn load_hall_of_beorn() -> Vec<hall_of_beorn::Card> {
         let set = "The Wilds of Rhovanion";
         let _m = hob_mocks::card_set(&set).unwrap();
 
-        hall_of_beorn::Card::fetch_all(set).unwrap()
+        block_on(hall_of_beorn::Card::fetch_all(set)).unwrap()
     }
 
     #[test]
@@ -415,7 +416,7 @@ mod tests {
     fn test_sets() {
         let _m = hob_mocks::card_sets().unwrap();
         let dir = Path::new(fixtures::lotr::octgn::SETS);
-        let result = sets(&dir);
+        let result = block_on(sets(&dir));
         assert!(result.is_ok());
 
         let card_sets = result.unwrap();
