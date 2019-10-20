@@ -76,7 +76,8 @@ async fn main() {
                     std::process::exit(2);
                 })
             });
-        lotr_octgn::pack(&set).await.unwrap_or_else(|_| {
+        lotr_octgn::pack(&set).await.unwrap_or_else(|e| {
+            eprintln!("{}", e);
             std::process::exit(3);
         });
     } else if args.cmd_sets {
